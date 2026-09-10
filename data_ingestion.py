@@ -10,8 +10,8 @@ end_time = current_time.strftime("%Y-%m-%d")
 
 # Declare the ticker symbol to download the data for
 ticker_symbols = ["AAPL", "MSFT", "GOOGL", "SPY"]
-# Download the data for the ticker symbol from Yahoo Finance
 
+# Download the data for the ticker symbol from Yahoo Finance
 data = yf.download(ticker_symbols, start=start_time, end=end_time, auto_adjust=True)
 
 data = data.stack(level=1, future_stack=True).reset_index()
