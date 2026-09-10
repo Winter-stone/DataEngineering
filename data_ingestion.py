@@ -12,4 +12,7 @@ ticker_symbols = ["AAPL", "MSFT", "GOOGL", "SPY"]
 # Download the data for the ticker symbol from Yahoo Finance
 
 data = yf.download(ticker_symbols, start=start_time, end=end_time, auto_adjust=True)
-print(data)
+
+data.to_parquet("stock_data.parquet", engine="pyarrow", index=True)
+
+print("data successfully downloaded and saved to stock_data.parquet")
