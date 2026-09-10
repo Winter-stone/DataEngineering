@@ -1,4 +1,5 @@
 import yfinance as yf
+import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -13,6 +14,11 @@ ticker_symbols = ["AAPL", "MSFT", "GOOGL", "SPY"]
 
 data = yf.download(ticker_symbols, start=start_time, end=end_time, auto_adjust=True)
 
+data = data.stack(level=1, future_stack=True).reset_index()
+data.rename(columns={'level_1': 'Ticker'}, inplace=True)
+data["Date"] = pd.to_datetime(data["Date"])
+
+# Flattening the multi-index columns and converting date into pandas datetime format
 data.to_parquet("stock_data.parquet", engine="pyarrow", index=True)
 
 print("data successfully downloaded and saved to stock_data.parquet")
