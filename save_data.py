@@ -15,7 +15,7 @@ def clean_data(data):
         
     # Check for duplicates in the data
     if data.duplicated().any():
-         data = data[~data.duplicated(keep="first")]
+         data = data[~data.duplicated(subset=["ticker", "date"], keep="first")]
          
     # 
         
