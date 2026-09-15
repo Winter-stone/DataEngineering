@@ -7,6 +7,7 @@ data = sd.clean_data(data)
 
 filters = dt.filters(data)
 
+
 data = filters.calculate_daily_vwap(data)
 print(data.head())
 

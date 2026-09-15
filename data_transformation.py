@@ -85,13 +85,22 @@ class filters:
 
     def calculate_daily_vwap(self, df, window = 20):
 
-        df['htf_ema'] = df['Close'].ewm(span=(window * 10), adjust=False).mean()
+        df['htf_ema'] = df.groupby("Ticker")['Close'].transform(
+            lambda x: x.ewm(span=(window * 10), adjust=False).mean())
+        
         
         typical_price = (df['High'] + df['Low'] + df['Close']) / 3
-        pv = typical_price * df['Volume']
         
-        rolling_pv = pv.rolling(window=window, min_periods=1).sum()
-        rolling_vol = df['Volume'].rolling(window=window, min_periods=1).sum()
+        df['pv'] = typical_price * df['Volume']
+
+        rolling_pv = df.groupby("Ticker")['pv'].transform(
+            lambda x: x.rolling(window=window, min_periods=1).sum())
+
+        rolling_vol = df.groupby("Ticker")['Volume'].transform(
+            lambda x: x.rolling(window=window, min_periods=1).sum())
+        
         df['daily_vwap'] = rolling_pv / rolling_vol
+        
+        df.drop(columns=['pv'], inplace=True)
 
         return df
