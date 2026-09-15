@@ -1,8 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine
 
-data = pd.read_parquet("stock_data.parquet", engine="pyarrow")
-
 def clean_data(data):
     # Flattening the multi-index columns
     if isinstance(data.columns, pd.MultiIndex):
@@ -42,8 +40,4 @@ def clean_data(data):
         
     return data_cleaned
     
-data = clean_data(data)
-
-print(data.head())
-
-print(data.info())
+# data = clean_data(data)
