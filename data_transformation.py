@@ -64,23 +64,30 @@ class filters:
         return df
 
     def calculate_rsi(self, df, period=14):
-        delta = df['close'].diff()
+        
+        # 1. Calculate delta grouped by Ticker to prevent data bleed
+        delta = df.groupby("Ticker")['Close'].diff()
 
-        # 2. Separate Gains and Losses
+        # 2. Separate Gains and Losses (Row-by-row, no groupby needed)
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
 
-        # 3. Wilder's Smoothing (alpha = 1/period)
-        # Using ewm with adjust=False mimics Wilder's recursive formula perfectly
-        avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
-        avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
+        # 3. Wilder's Smoothing grouped by Ticker using transform
+        avg_gain = gain.groupby(df["Ticker"]).transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
 
-        # 4. Calculate RS
+        avg_loss = loss.groupby(df["Ticker"]).transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
+
+        # 4. Calculate RS (Vectorized)
         rs = avg_gain / avg_loss
 
         # 5. Calculate RSI
         df['RSI'] = 100 - (100 / (1 + rs))
-
+        df['RSI'] = df['RSI'].fillna(0)
+        
         return df
 
     def calculate_daily_vwap(self, df, window = 20):

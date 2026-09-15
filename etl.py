@@ -9,5 +9,8 @@ filters = dt.filters(data)
 
 
 data = filters.calculate_daily_vwap(data)
+data = filters.calculate_rsi(data)
+
+
 print(data.head())
 
