@@ -17,18 +17,14 @@ class filters:
         self.data = data.copy()
         return self.data
 
-    def calculate_ma_crossover(self, df, smma = 89, ema = 5):
-        df['EMA'] = df.close.ewm(span = ema, adjust = False).mean()
-        df["SMMA"] = df.close.ewm(alpha = 1/smma, adjust = False).mean()
-        df["ma_position"] = np.where(df["EMA"] > df["SMMA"], 1, -1)
-        df.drop(columns = ["EMA", "SMMA"], inplace=True)
-        df.dropna(inplace=True)
-
-        return df
 
     def mean_reversion(self, df, window=14):
-        df["returns"] = np.log(df["close"]/df["close"].shift(1))
-        df["con_position"] = -np.sign(df['returns'].rolling(window).mean())
+        
+        df["returns"] = np.log(df["Close"] / df.groupby("Ticker")["Close"].shift(1))
+
+        df["con_position"] = -np.sign(df.groupby("Ticker")["returns"].transform(
+            lambda x: x.rolling(window=window).mean()))
+
         df.dropna(inplace=True)
 
         return df
@@ -52,8 +48,11 @@ class filters:
         df['up_move'] = df['High'] - high_shift
         df['down_move'] = low_shift - df['Low']
 
-        df['+dm'] = np.where((df['up_move'] > df['down_move']) & (df['up_move'] > 0), df['up_move'], 0)
-        df['-dm'] = np.where((df['down_move'] > df['up_move']) & (df['down_move'] > 0), df['down_move'], 0)
+        df['+dm'] = np.where((df['up_move'] > df['down_move']) & 
+                             (df['up_move'] > 0), df['up_move'], 0)
+        
+        df['-dm'] = np.where((df['down_move'] > df['up_move']) & 
+                             (df['down_move'] > 0), df['down_move'], 0)
 
         # 3. True Range (Vectorized)
         df['TR'] = np.maximum(
