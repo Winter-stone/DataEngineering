@@ -39,28 +39,60 @@ class filters:
 
         
     def calculate_adx(self, df, period = 14):
-        df['up_move'] = df['high'] - df['high'].shift(1)
-        df['down_move'] = df['low'].shift(1) - df['low']
+        
+        # 1. Grouped Shifts to prevent cross-ticker bleed
+        high_shift = df.groupby("Ticker")['High'].shift(1)
+        low_shift = df.groupby("Ticker")['Low'].shift(1)
+        close_shift = df.groupby("Ticker")['Close'].shift(1)
+
+        # 2. Calculate Moves (Vectorized)
+        df['up_move'] = df['High'] - high_shift
+        df['down_move'] = low_shift - df['Low']
 
         df['+dm'] = np.where((df['up_move'] > df['down_move']) & (df['up_move'] > 0), df['up_move'], 0)
         df['-dm'] = np.where((df['down_move'] > df['up_move']) & (df['down_move'] > 0), df['down_move'], 0)
 
-        df['TR'] = np.maximum(df['high'] - df['low'], np.maximum(abs(df['high'] - df['close'].shift(1)), abs(df['low'] - df['close'].shift(1))))
+        # 3. True Range (Vectorized)
+        df['TR'] = np.maximum(
+            df['High'] - df['Low'], 
+            np.maximum(
+                abs(df['High'] - close_shift), 
+                abs(df['Low'] - close_shift)
+            )
+        )
 
-        df['tr_smoothed'] = df['TR'].ewm(alpha=1/period, adjust = False).mean()
-        df['+dm_smoothed'] = df['+dm'].ewm(alpha=1/period, adjust=False).mean()
-        df['-dm_smoothed'] = df['-dm'].ewm(alpha=1/period, adjust=False).mean()
+        # 4. Wilder's Smoothing for TR and DM (Grouped)
+        df['tr_smoothed'] = df.groupby("Ticker")['TR'].transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
+        df['+dm_smoothed'] = df.groupby("Ticker")['+dm'].transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
+        df['-dm_smoothed'] = df.groupby("Ticker")['-dm'].transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
 
+        # 5. Directional Indices (Vectorized)
         df['+di'] = 100 * (df['+dm_smoothed'] / df['tr_smoothed'])
         df['-di'] = 100 * (df['-dm_smoothed'] / df['tr_smoothed'])
-
         df['DX'] = 100 * (abs(df['+di'] - df['-di']) / (df['+di'] + df['-di']))
 
-        df['ADX'] = df['DX'].ewm(alpha=1/period, adjust=False).mean()
-        df["ATR"] = df["TR"].ewm(alpha=1/period, adjust=False).mean()
+        # 6. Final ADX and ATR Smoothing (Grouped)
+        df['ADX'] = df.groupby("Ticker")['DX'].transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
+        df['ATR'] = df.groupby("Ticker")['TR'].transform(
+            lambda x: x.ewm(alpha=1/period, adjust=False).mean()
+        )
         
-        df.drop(columns = ['up_move', 'down_move', 'TR', 'tr_smoothed', '+dm_smoothed', '-dm_smoothed', '+dm', '-dm',"+di", "-di", 'DX'], inplace=True)
+        df["ADX"] = df["ADX"].fillna(0)
+        df["ATR"] = df["ATR"].fillna(0)
 
+        # 7. Cleanup
+        df.drop(columns=['up_move', 'down_move', 'TR', 'tr_smoothed', 
+            '+dm_smoothed', '-dm_smoothed', '+dm', '-dm', 
+            '+di', '-di', 'DX'], inplace=True)
+        
         return df
 
     def calculate_rsi(self, df, period=14):
