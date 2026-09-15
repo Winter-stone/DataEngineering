@@ -34,9 +34,12 @@ class filters:
         return df
 
     def relative_volume(self, df, period = 20):
-        df["RVOL"] = (df["volume"] / df["volume"].rolling(period).mean().shift(1)).round(1)
+        df["RVOL"] = df.groupby("Ticker")["Volume"].transform(
+            lambda x: (x / x.rolling(window=period).mean().shift(1)).round(1))       
+        
+        df["RVOL"] = df["RVOL"].fillna(0)
+        
         return df
-
         
     def calculate_adx(self, df, period = 14):
         

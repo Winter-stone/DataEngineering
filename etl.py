@@ -11,6 +11,7 @@ filters = dt.filters(data)
 data = filters.calculate_daily_vwap(data)
 data = filters.calculate_rsi(data)
 data = filters.calculate_adx(data)
+data = filters.relative_volume(data)
 
 
 print(data.head())
