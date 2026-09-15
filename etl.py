@@ -13,6 +13,7 @@ data = filters.calculate_rsi(data)
 data = filters.calculate_adx(data)
 data = filters.relative_volume(data)
 data = filters.mean_reversion(data)
+data = filters.calculate_ma_crossover(data)
 
 
 print(data.head())

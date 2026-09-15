@@ -17,6 +17,19 @@ class filters:
         self.data = data.copy()
         return self.data
 
+    def calculate_ma_crossover(self, df, smma = 89, ema = 5):
+        df['EMA'] = df.groupby("Ticker")['Close'].transform(
+            lambda x: x.ewm(span=ema, adjust=False).mean())
+
+        df["SMMA"] = df.groupby("Ticker")['Close'].transform(
+            lambda x: x.ewm(alpha=1/smma, adjust=False).mean())
+
+        df["ma_position"] = np.where(df["EMA"] > df["SMMA"], 1, -1)
+
+        df.drop(columns=["EMA", "SMMA"], inplace=True)
+        df.dropna(inplace=True)
+
+        return df
 
     def mean_reversion(self, df, window=14):
         
@@ -25,6 +38,7 @@ class filters:
         df["con_position"] = -np.sign(df.groupby("Ticker")["returns"].transform(
             lambda x: x.rolling(window=window).mean()))
 
+        df.drop(columns=["returns"], inplace=True)
         df.dropna(inplace=True)
 
         return df
