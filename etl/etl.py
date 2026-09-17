@@ -1,16 +1,28 @@
 import pandas as pd
+from pathlib import Path
 import clean_data as cd
 import data_transformation as dt
+from data_ingestion import extract
 
-data = pd.read_parquet("stock_data.parquet", engine="pyarrow")
-data = cd.deep_clean(data)
+from datetime import datetime
 
-filters = dt.filters(data)
+extrcted_data_path = Path.cwd().parent / "stock_data.parquet"
 
-data = filters.get_all_filters()
+def extract_data():
+    if not extrcted_data_path.exists():
+        extract(datetime.now())
+        
+def clean_and_transform_data():
+    
+    data = pd.read_parquet(extrcted_data_path, engine="pyarrow")
+    data = cd.deep_clean(data)
 
-data = cd.deep_clean(data)
+    filters = dt.filters(data)
+    data = filters.get_all_filters()
+
+    data = cd.deep_clean(data)
+    
+    return data
 
 
-print(data.head())
-
+print(clean_and_transform_data().head())
