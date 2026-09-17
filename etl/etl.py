@@ -3,6 +3,7 @@ from pathlib import Path
 import clean_data as cd
 import data_transformation as dt
 from data_ingestion import extract
+from persistence.database_engine import save_to_db
 
 from datetime import datetime
 
@@ -24,5 +25,4 @@ def clean_and_transform_data():
     
     return data
 
-
-print(clean_and_transform_data().head())
+save_to_db(clean_and_transform_data())
