@@ -3,9 +3,9 @@ import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-def extract(current_time):
+def extract(current_time, months):
     # Declare the date to download the ticker symbol data from the last 12 months
-    start_time = (current_time - relativedelta(months=12)).strftime("%Y-%m-%d")
+    start_time = (current_time - relativedelta(months=months)).strftime("%Y-%m-%d")
     end_time = current_time.strftime("%Y-%m-%d")
 
     # Declare the ticker symbol to download the data for

@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import create_engine, text
 
-env_file_path = Path.cwd().parent / ".env"
+env_file_path = Path.cwd() / ".env"
 
 try:
     with open(env_file_path, "r") as file:
@@ -37,7 +37,7 @@ def check_if_db_exists():
             create_schema()
         
 def create_schema():
-    sql_file_path = Path.cwd().parent / "schema.sql"
+    sql_file_path = Path.cwd() / "schema.sql"
     with open(sql_file_path, "r", encoding = "utf-8") as file:
         ddl_statements = file.read()
         
@@ -46,16 +46,40 @@ def create_schema():
         
     print(f"schema successfully applied to database '{DB_NAME}'!")
     
-def save_to_db(df):
-    df.to_sql (
-    name="stock_pricea",
-    con=engine,
-    if_exists="append",
-    index=False,
-    chuncksize=5000,
-    method="multi"
-    )
+def save_to_db(df, table_name="stock_prices"):
+    with engine.begin() as conn:
+        # 1. Write the DataFrame to a temporary staging table
+        # 'temporary=True' ensures Postgres drops it automatically if connection drops
+        df.to_sql(
+            name="temp_stock_staging",
+            con=conn,
+            if_exists="replace",
+            index=False,
+            method="multi",
+            chunksize=5000
+        )
+
+        # 2. Perform atomic insert into real table, skipping existing ticker/timestamp rows
+        upsert_query = text(f"""
+            INSERT INTO {table_name} (
+                ticker, date, open, high, low, close, volume, 
+                ma_cross, mean_reversion, relative_volume, 
+                adx, atr, rsi, htf_ema, daily_vwap
+            )
+            SELECT 
+                ticker, date, open, high, low, close, volume, 
+                ma_cross, mean_reversion, relative_volume, 
+                adx, atr, rsi, htf_ema, daily_vwap
+            FROM temp_stock_staging
+            ON CONFLICT (ticker, date) 
+            DO NOTHING;
+
+            DROP TABLE IF EXISTS temp_stock_staging;
+        """)
+
+        conn.execute(upsert_query)
+        
     
-    print(f"data successfully saved to database '{DB_NAME}'!")
+        print(f"data successfully saved to database '{DB_NAME}'!")
     
 check_if_db_exists()

@@ -18,13 +18,13 @@ class filters:
         return self.data
 
     def calculate_ma_crossover(self, df, smma = 89, ema = 5):
-        df['EMA'] = df.groupby("Ticker")['Close'].transform(
+        df['EMA'] = df.groupby("ticker")['close'].transform(
             lambda x: x.ewm(span=ema, adjust=False).mean())
 
-        df["SMMA"] = df.groupby("Ticker")['Close'].transform(
+        df["SMMA"] = df.groupby("ticker")['close'].transform(
             lambda x: x.ewm(alpha=1/smma, adjust=False).mean())
 
-        df["ma_position"] = np.where(df["EMA"] > df["SMMA"], 1, -1)
+        df["ma_cross"] = np.where(df["EMA"] > df["SMMA"], 1, -1)
 
         df.drop(columns=["EMA", "SMMA"], inplace=True)
         df.dropna(inplace=True)
@@ -33,9 +33,9 @@ class filters:
 
     def mean_reversion(self, df, window=14):
         
-        df["returns"] = np.log(df["Close"] / df.groupby("Ticker")["Close"].shift(1))
+        df["returns"] = np.log(df["close"] / df.groupby("ticker")["close"].shift(1))
 
-        df["con_position"] = -np.sign(df.groupby("Ticker")["returns"].transform(
+        df["mean_reversion"] = -np.sign(df.groupby("ticker")["returns"].transform(
             lambda x: x.rolling(window=window).mean()))
 
         df.drop(columns=["returns"], inplace=True)
@@ -44,23 +44,23 @@ class filters:
         return df
 
     def relative_volume(self, df, period = 20):
-        df["RVOL"] = df.groupby("Ticker")["Volume"].transform(
+        df["relative_volume"] = df.groupby("ticker")["volume"].transform(
             lambda x: (x / x.rolling(window=period).mean().shift(1)).round(1))       
         
-        df["RVOL"] = df["RVOL"].fillna(0)
+        df["relative_volume"] = df["relative_volume"].fillna(0)
         
         return df
         
     def calculate_adx(self, df, period = 14):
         
         # 1. Grouped Shifts to prevent cross-ticker bleed
-        high_shift = df.groupby("Ticker")['High'].shift(1)
-        low_shift = df.groupby("Ticker")['Low'].shift(1)
-        close_shift = df.groupby("Ticker")['Close'].shift(1)
+        high_shift = df.groupby("ticker")['high'].shift(1)
+        low_shift = df.groupby("ticker")['low'].shift(1)
+        close_shift = df.groupby("ticker")['close'].shift(1)
 
         # 2. Calculate Moves (Vectorized)
-        df['up_move'] = df['High'] - high_shift
-        df['down_move'] = low_shift - df['Low']
+        df['up_move'] = df['high'] - high_shift
+        df['down_move'] = low_shift - df['low']
 
         df['+dm'] = np.where((df['up_move'] > df['down_move']) & 
                              (df['up_move'] > 0), df['up_move'], 0)
@@ -70,21 +70,21 @@ class filters:
 
         # 3. True Range (Vectorized)
         df['TR'] = np.maximum(
-            df['High'] - df['Low'], 
+            df['high'] - df['low'], 
             np.maximum(
-                abs(df['High'] - close_shift), 
-                abs(df['Low'] - close_shift)
+                abs(df['high'] - close_shift), 
+                abs(df['low'] - close_shift)
             )
         )
 
         # 4. Wilder's Smoothing for TR and DM (Grouped)
-        df['tr_smoothed'] = df.groupby("Ticker")['TR'].transform(
+        df['tr_smoothed'] = df.groupby("ticker")['TR'].transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
-        df['+dm_smoothed'] = df.groupby("Ticker")['+dm'].transform(
+        df['+dm_smoothed'] = df.groupby("ticker")['+dm'].transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
-        df['-dm_smoothed'] = df.groupby("Ticker")['-dm'].transform(
+        df['-dm_smoothed'] = df.groupby("ticker")['-dm'].transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
 
@@ -93,16 +93,16 @@ class filters:
         df['-di'] = 100 * (df['-dm_smoothed'] / df['tr_smoothed'])
         df['DX'] = 100 * (abs(df['+di'] - df['-di']) / (df['+di'] + df['-di']))
 
-        # 6. Final ADX and ATR Smoothing (Grouped)
-        df['ADX'] = df.groupby("Ticker")['DX'].transform(
+        # 6. Final adx and atr Smoothing (Grouped)
+        df['adx'] = df.groupby("ticker")['DX'].transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
-        df['ATR'] = df.groupby("Ticker")['TR'].transform(
+        df['atr'] = df.groupby("ticker")['TR'].transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
         
-        df["ADX"] = df["ADX"].fillna(0)
-        df["ATR"] = df["ATR"].fillna(0)
+        df["adx"] = df["adx"].fillna(0)
+        df["atr"] = df["atr"].fillna(0)
 
         # 7. Cleanup
         df.drop(columns=['up_move', 'down_move', 'TR', 'tr_smoothed', 
@@ -113,45 +113,45 @@ class filters:
 
     def calculate_rsi(self, df, period=14):
         
-        # 1. Calculate delta grouped by Ticker to prevent data bleed
-        delta = df.groupby("Ticker")['Close'].diff()
+        # 1. Calculate delta grouped by ticker to prevent data bleed
+        delta = df.groupby("ticker")['close'].diff()
 
         # 2. Separate Gains and Losses (Row-by-row, no groupby needed)
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
 
-        # 3. Wilder's Smoothing grouped by Ticker using transform
-        avg_gain = gain.groupby(df["Ticker"]).transform(
+        # 3. Wilder's Smoothing grouped by ticker using transform
+        avg_gain = gain.groupby(df["ticker"]).transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
 
-        avg_loss = loss.groupby(df["Ticker"]).transform(
+        avg_loss = loss.groupby(df["ticker"]).transform(
             lambda x: x.ewm(alpha=1/period, adjust=False).mean()
         )
 
         # 4. Calculate RS (Vectorized)
         rs = avg_gain / avg_loss
 
-        # 5. Calculate RSI
-        df['RSI'] = 100 - (100 / (1 + rs))
-        df['RSI'] = df['RSI'].fillna(0)
+        # 5. Calculate rsi
+        df['rsi'] = 100 - (100 / (1 + rs))
+        df['rsi'] = df['rsi'].fillna(0)
         
         return df
 
     def calculate_daily_vwap(self, df, window = 20):
 
-        df['htf_ema'] = df.groupby("Ticker")['Close'].transform(
+        df['htf_ema'] = df.groupby("ticker")['close'].transform(
             lambda x: x.ewm(span=(window * 10), adjust=False).mean())
         
         
-        typical_price = (df['High'] + df['Low'] + df['Close']) / 3
+        typical_price = (df['high'] + df['low'] + df['close']) / 3
         
-        df['pv'] = typical_price * df['Volume']
+        df['pv'] = typical_price * df['volume']
 
-        rolling_pv = df.groupby("Ticker")['pv'].transform(
+        rolling_pv = df.groupby("ticker")['pv'].transform(
             lambda x: x.rolling(window=window, min_periods=1).sum())
 
-        rolling_vol = df.groupby("Ticker")['Volume'].transform(
+        rolling_vol = df.groupby("ticker")['volume'].transform(
             lambda x: x.rolling(window=window, min_periods=1).sum())
         
         df['daily_vwap'] = rolling_pv / rolling_vol
