@@ -36,6 +36,6 @@ def deep_clean(data):
     data_cleaned = data[valid_mask].copy()
 
     # 7. Sort Chronologically
-    data_cleaned = data_cleaned.sort_values("date").reset_index(drop=True)
+    data_cleaned.sort_values(by="date", inplace=True)
         
     return data_cleaned
