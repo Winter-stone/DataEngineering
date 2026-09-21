@@ -1,7 +1,7 @@
-Stock Market Data Engineering Pipeline
+# Stock Market Data Engineering Pipeline
 An end-to-end quantitative data engineering pipeline that ingests raw multi-ticker market data, cleans and flattens price structures, computes technical indicators, and idempotently persists long-format records into PostgreSQL. Orchestrated and scheduled via Dagster Software-Defined Assets.
 
-Architecture Overview
+# Architecture Overview
                       [ stock_data.parquet ]
                                 │
                                 ▼
@@ -18,7 +18,8 @@ Architecture Overview
                                 ▼
                    [ persisted_stock_prices ]
                    (PostgreSQL Atomic Upsert)
-The pipeline handles:
+
+### The pipeline handles:
 
 Data Reshaping: Flattens multi-indexed column structures into a single-level long format with an independent ticker and date per row.
 
@@ -28,8 +29,9 @@ Database Idempotency: Loads records into a temporary staging table and uses Post
 
 Orchestration: Built using Dagster assets with built-in data lineage, parameter dependency injection, and cron-based market-close scheduling.
 
-Project Structure
-Plaintext
+## Project Structure
+
+# Plaintext
 .
 ├── .env                       # Database credentials and local secrets
 ├── .gitignore                 # Python, environment, and OS ignore rules
@@ -50,7 +52,7 @@ Plaintext
 │
 └── orchestration.py           # Dagster assets, jobs, and weekday schedule definitions
 
-Prerequisites & Installation
+### Prerequisites & Installation
 1. Requirements
 Python 3.11 or 3.12
 
